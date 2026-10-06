@@ -1,0 +1,34 @@
+name: Fetch note articles
+
+# note のマガジンRSSから data/{news,stories}.json を再生成し、GitHub Pages で配信する。
+# binoo.jp（Shopifyテーマ）のホームが読み込み時にこのJSONを取得して STORIES / おしらせ を描画する。
+
+on:
+  schedule:
+    - cron: "0 22 * * *" # 毎日 07:00 JST
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fetch-note
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch note RSS and rebuild JSON
+        run: python3 scripts/fetch_note.py
+      - name: Commit if changed
+        run: |
+          if [ -z "$(git status --porcelain data)" ]; then
+            echo "変更なし。コミットしない。"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data
+          git commit -m "noteの最新記事を反映（自動）"
+          git push
